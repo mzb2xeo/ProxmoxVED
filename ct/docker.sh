@@ -14,6 +14,7 @@ var_disk="${var_disk:-4}"
 var_os="${var_os:-debian}"
 var_version="${var_version:-13}"
 var_unprivileged="${var_unprivileged:-1}"
+var_keyctl="1" # Enables keyctl() support for Docker for this container
 
 header_info "$APP"
 variables
@@ -31,25 +32,29 @@ function update_script() {
   msg_ok "Base system updated"
 
   msg_info "Installing dependencies and adding Docker Repository"
-  $STD apt install -y apt-transport-https ca-certificates curl software-properties-common
-  curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
-  add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable"
-  $STD apt update
-  msg_ok "Docker Repository added"
+  $STD apt update -y
+  $STD apt install -y ca-certificates curl gnupg
 
-  msg_info "Installing Docker Engine"
-  $STD apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-  msg_ok "Docker CE cli Engine & docker-compose plugin installed"
+  mkdir -p /etc/apt/keyrings
+  curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  chmod a+r /etc/apt/keyrings/docker.gpg
 
-  if [[ -f /usr/local/lib/docker/cli-plugins/docker-compose ]]; then
-    COMPOSE_BIN="/usr/local/lib/docker/cli-plugins/docker-compose"
-    COMPOSE_NEW_VERSION=$(get_latest_release "docker/compose")
-    msg_info "Updating Docker Compose to $COMPOSE_NEW_VERSION"
-    curl -fsSL "https://github.com/docker/compose/releases/download/${COMPOSE_NEW_VERSION}/docker-compose-$(uname -s)-$(uname -m)" \
-      -o "$COMPOSE_BIN"
-    chmod +x "$COMPOSE_BIN"
-    msg_ok "Docker Compose updated"
-  fi
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+    $(. /etc/os-release && echo $VERSION_CODENAME) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+  $STD apt update -y
+  $STD apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+  # Install docker compose v2
+  DOCKER_CONFIG=${DOCKER_CONFIG:-$HOME/.docker}
+  mkdir -p $DOCKER_CONFIG/cli-plugins
+  curl -SL https://github.com/docker/compose/releases/download/v2.40.3/docker-compose-linux-x86_64 -o $DOCKER_CONFIG/cli-plugins/docker-compose
+  chmod +x $DOCKER_CONFIG/cli-plugins/docker-compose
+
+  docker --version
+  docker compose version
+  docker-compose --version
+  msg_ok "Docker CE cli engine & docker-compose plugin installed"
 
   if docker ps -a --format '{{.Names}}' | grep -q '^portainer$'; then
     msg_info "Updating Portainer"
@@ -72,7 +77,7 @@ function update_script() {
     $STD docker pull portainer/agent:latest
     $STD docker stop portainer_agent && docker rm portainer_agent
     $STD docker run -d \
-      -p 9001:9001 \
+      -p 9443:9443 \
       --name=portainer_agent \
       --restart=always \
       -v /var/run/docker.sock:/var/run/docker.sock \
