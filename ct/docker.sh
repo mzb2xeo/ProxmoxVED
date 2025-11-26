@@ -14,116 +14,23 @@ var_disk="${var_disk:-4}"
 var_os="${var_os:-debian}"
 var_version="${var_version:-13}"
 var_unprivileged="${var_unprivileged:-1}"
-var_keyctl="1" # Enables keyctl() support for Docker for this container
+var_keyctl="${var_keyctl:-1}"    # Enables keyctl() support for Docker for this container
+var_nesting="${var_nesting:-1}"  # Allow nesting (Required for Docker/LXC in CT)
+var_mknod="${var_mknod:-0}"      # Allow device node creation (requires kernel 5.3+, experimental)
 
 header_info "$APP"
 variables
 color
 catch_errors
 
-function update_script() {
-  header_info
-  check_container_storage
-  check_container_resources
-
-  msg_info "Updating base system"
-  apt update && apt -y upgrade
-  msg_ok "Base system updated"
-
-  msg_info "Installing Docker dependencies"
-  apt install -y ca-certificates curl gnupg
-
-  # Add Docker's official GPG key and repository
-  mkdir -p /etc/apt/keyrings
-  curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-  chmod a+r /etc/apt/keyrings/docker.gpg
-
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
-    $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-  apt update -y
-  apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-  msg_ok "Docker Engine and plugins installed"
-
-  # Install Docker Compose v2
-  DOCKER_CONFIG=${DOCKER_CONFIG:-$HOME/.docker}
-  mkdir -p "$DOCKER_CONFIG/cli-plugins"
-  curl -SL https://github.com/docker/compose/releases/download/v2.40.3/docker-compose-linux-x86_64 -o "$DOCKER_CONFIG/cli-plugins/docker-compose"
-  chmod +x "$DOCKER_CONFIG/cli-plugins/docker-compose"
-
-  # Wait for Docker Compose to become available, up to 30 seconds
-  for i in {1..30}; do
-    if docker compose version >/dev/null 2>&1; then
-      break
-    fi
-    sleep 1
-  done
-  if ! docker compose version >/dev/null 2>&1; then
-    echo "Error: Docker Compose did not become available after installation." >&2
-    exit 1
-  fi
-
-  docker --version
-  docker compose version
-  msg_ok "Docker Compose v2 installed"
-
-  # Update or install Portainer
-  if docker ps -a --format '{{.Names}}' | grep -q '^portainer$'; then
-    msg_info "Updating Portainer"
-    docker pull portainer/portainer-ce:latest
-    docker stop portainer && docker rm portainer
-    docker volume create portainer_data >/dev/null 2>&1
-    docker run -d \
-      -p 8000:8000 \
-      -p 9443:9443 \
-      --name=portainer \
-      --restart=always \
-      -v /var/run/docker.sock:/var/run/docker.sock \
-      -v portainer_data:/data \
-      portainer/portainer-ce:latest
-    msg_ok "Updated Portainer"
-  fi
-
-  sleep 5
-
-  # Update or install Portainer Agent
-  if docker ps -a --format '{{.Names}}' | grep -q '^portainer_agent$'; then
-    msg_info "Updating Portainer Agent"
-    docker pull portainer/agent:latest
-    docker stop portainer_agent && docker rm portainer_agent
-    docker run -d \
-      -p 9001:9001 \
-      --name=portainer_agent \
-      --restart=always \
-      -v /var/run/docker.sock:/var/run/docker.sock \
-      -v /var/lib/docker/volumes:/var/lib/docker/volumes \
-      portainer/agent
-    # Wait for Portainer Agent to become ready
-    for i in {1..30}; do
-      if curl -fs http://localhost:9001 > /dev/null 2>&1; then
-        break
-      fi
-      sleep 1
-    done
-    if ! curl -fs http://localhost:9001 > /dev/null 2>&1; then
-      echo "Warning: Portainer Agent did not become ready after 30 seconds."
-    fi
-    msg_ok "Updated Portainer Agent"
-  fi
-
-  sleep 5
-
-  msg_info "Cleaning up"
-  apt-get -y autoremove && apt-get -y autoclean
-  msg_ok "Cleanup complete"
-  msg_ok "Docker and Portainer update completed successfully!"
-  exit 0
+function setup_docker() {
+  DOCKER_PORTAINER="true"
+  DOCKER_LOG_DRIVER="json-file"
 }
 
-start
+start # Calls update_script
 build_container
 description
-update_script
 
 msg_ok "Completed Successfully!\n"
 echo -e "${CREATING}${GN}${APP} setup has been successfully initialized!${CL}"
