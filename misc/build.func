@@ -1593,14 +1593,16 @@ advanced_settings() {
     fi
     echo -e "${SEARCH}${BOLD}${DGN}Container Protection: ${BGN}$PROTECT_CT${CL}"
 
-    # Container timezone
-    if CT_TIMEZONE=$(whiptail --backtitle "Proxmox VE Helper Scripts" --inputbox "Set container timezone (e.g., Europe/Berlin)\nLeave blank to use host timezone" 8 58 "$CT_TIMEZONE" --title "Container Timezone" 3>&1 1>&2 2>&3); then
-      [ -z "$CT_TIMEZONE" ] && CT_TIMEZONE="(host)"
+   # Container timezone
+    HOST_TIMEZONE=$(cat /etc/timezone 2>/dev/null)
+    if CT_TIMEZONE=$(whiptail --backtitle "Proxmox VE Helper Scripts" \
+      --inputbox "Set container timezone (e.g., Europe/Berlin)\nLeave blank to use host timezone" 8 58 "${CT_TIMEZONE:-$HOST_TIMEZONE}" \
+      --title "Container Timezone" 3>&1 1>&2 2>&3); then
+      [ -z "$CT_TIMEZONE" ] && CT_TIMEZONE=""
     else
       exit_script
     fi
-    echo -e "${SEARCH}${BOLD}${DGN}Container Timezone: ${BGN}$CT_TIMEZONE${CL}"
-  fi
+    echo -e "${SEARCH}${BOLD}${DGN}Container Timezone: ${BGN}${CT_TIMEZONE:-host}${CL}"
 
   if (whiptail --backtitle "Proxmox VE Helper Scripts" --defaultno --title "FUSE Support" --yesno "Enable FUSE support?\nRequired for tools like rclone, mergerfs, AppImage, etc." 10 58); then
     ENABLE_FUSE="yes"
