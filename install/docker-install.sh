@@ -15,7 +15,7 @@ update_os
 
 # Apply AppArmor workaround BEFORE installing Docker
 # See: https://github.com/opencontainers/runc/issues/4968
-apply_docker_apparmor_workaround
+# apply_docker_apparmor_workaround
 
 get_latest_release() {
   curl -fsSL https://api.github.com/repos/"$1"/releases/latest | grep '"tag_name":' | cut -d'"' -f4
