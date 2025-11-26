@@ -1775,15 +1775,24 @@ install_script() {
 
   NEXTID=$(pvesh get /cluster/nextid)
 
-  # Get timezone using timedatectl (Debian 13+ compatible)
-  # Fallback to /etc/timezone for older systems
+  # Get timezone (Debian 13+ or fallback)
   if command -v timedatectl >/dev/null 2>&1; then
-    timezone=$(timedatectl show --value --property=Timezone 2>/dev/null || echo "UTC")
-  elif [ -f /etc/timezone ]; then
-    timezone=$(cat /etc/timezone)
-  else
+    timezone_output=$(timedatectl show --value --property=Timezone 2>&1)
+    if [ $? -eq 0 ]; then
+      timezone="$timezone_output"
+  if [ -z "$timezone" ]; then
     timezone="UTC"
+    echo "WARNING: Could not detect system timezone, falling back to UTC." >> "$BUILD_LOG"
+    echo "WARNING: Could not detect system timezone, falling back to UTC." >&2
   fi
+    timezone="UTC"
+    echo "WARNING: Could not determine system timezone, defaulting to UTC." | tee -a "$BUILD_LOG" >&2
+  fi
+      echo "[WARN] timedatectl failed: $timezone_output" >> "$BUILD_LOG"
+    fi
+  fi
+  timezone=${timezone:-$(cat /etc/timezone 2>/dev/null)}
+  timezone=${timezone:-UTC}
 
   # Show APP Header
   header_info
