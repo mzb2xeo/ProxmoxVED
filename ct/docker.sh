@@ -25,10 +25,6 @@ function update_script() {
   check_container_storage
   check_container_resources
 
-  get_latest_release() {
-    curl -fsSL https://api.github.com/repos/"$1"/releases/latest | grep '"tag_name":' | cut -d'"' -f4
-  }
-
   msg_info "Updating base system"
   $STD apt update
   $STD apt -y upgrade
