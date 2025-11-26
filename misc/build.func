@@ -914,7 +914,7 @@ _build_current_app_vars_tmp() {
   esac
 
   # SSH / APT / Features
-  _ssh="${SSH:-no}"
+  _ssh="${SSH:-yes}"
   _ssh_auth="${SSH_AUTHORIZED_KEY:-}"
   _apt_cacher="${APT_CACHER:-}"
   _apt_cacher_ip="${APT_CACHER_IP:-}"
@@ -927,7 +927,7 @@ _build_current_app_vars_tmp() {
   _protect="${PROTECT_CT:-no}"
   _timezone="${CT_TIMEZONE:-}"
   _tags="${TAGS:-}"
-  _verbose="${VERBOSE:-no}"
+  _verbose="${VERBOSE:-yes}"
 
   # Type / Resources / Identity
   _unpriv="${CT_TYPE:-1}"
@@ -2326,7 +2326,7 @@ build_container() {
   export tz="$timezone"
   export APPLICATION="$APP"
   export app="$NSAPP"
-  export PASSWORD="$PW"
+  export PASSWORD="local"
   export VERBOSE="$VERBOSE"
   export SSH_ROOT="${SSH}"
   export SSH_AUTHORIZED_KEY
