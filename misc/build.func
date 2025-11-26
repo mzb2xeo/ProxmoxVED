@@ -1780,14 +1780,14 @@ install_script() {
     timezone_output=$(timedatectl show --value --property=Timezone 2>&1)
     if [ $? -eq 0 ]; then
       timezone="$timezone_output"
-  if [ -z "$timezone" ]; then
-    timezone="UTC"
-    echo "WARNING: Could not detect system timezone, falling back to UTC." >> "$BUILD_LOG"
-    echo "WARNING: Could not detect system timezone, falling back to UTC." >&2
-  fi
-    timezone="UTC"
-    echo "WARNING: Could not determine system timezone, defaulting to UTC." | tee -a "$BUILD_LOG" >&2
-  fi
+      if [ -z "$timezone" ]; then
+        timezone="UTC"
+        echo "WARNING: Could not detect system timezone, falling back to UTC." >> "$BUILD_LOG"
+        echo "WARNING: Could not detect system timezone, falling back to UTC." >&2
+      fi
+    else
+      timezone="UTC"
+      echo "WARNING: Could not determine system timezone, defaulting to UTC." | tee -a "$BUILD_LOG" >&2
       echo "[WARN] timedatectl failed: $timezone_output" >> "$BUILD_LOG"
     fi
   fi
