@@ -27,29 +27,30 @@ function update_script() {
   check_container_resources
 
   msg_info "Updating base system"
-  $STD apt update
-  $STD apt -y upgrade
+  apt update && apt -y upgrade
   msg_ok "Base system updated"
 
-  msg_info "Installing dependencies and adding Docker Repository"
-  $STD apt update -y
-  $STD apt install -y ca-certificates curl gnupg
+  msg_info "Installing Docker dependencies"
+  apt install -y ca-certificates curl gnupg
 
-  $STD mkdir -p /etc/apt/keyrings
-  $STD curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-  $STD chmod a+r /etc/apt/keyrings/docker.gpg
+  # Add Docker's official GPG key and repository
+  mkdir -p /etc/apt/keyrings
+  curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  chmod a+r /etc/apt/keyrings/docker.gpg
 
   echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
     $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-  $STD apt update -y
-  $STD apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-sleep 10
-  # Install docker compose v2
+  apt update -y
+  apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  msg_ok "Docker Engine and plugins installed"
+
+  # Install Docker Compose v2
   DOCKER_CONFIG=${DOCKER_CONFIG:-$HOME/.docker}
-  $STD mkdir -p "$DOCKER_CONFIG"/cli-plugins
-  $STD curl -SL https://github.com/docker/compose/releases/download/v2.40.3/docker-compose-linux-x86_64 -o "$DOCKER_CONFIG"/cli-plugins/docker-compose
-  $STD chmod +x "$DOCKER_CONFIG"/cli-plugins/docker-compose
+  mkdir -p "$DOCKER_CONFIG/cli-plugins"
+  curl -SL https://github.com/docker/compose/releases/download/v2.40.3/docker-compose-linux-x86_64 -o "$DOCKER_CONFIG/cli-plugins/docker-compose"
+  chmod +x "$DOCKER_CONFIG/cli-plugins/docker-compose"
+
   # Wait for Docker Compose to become available, up to 30 seconds
   for i in {1..30}; do
     if docker compose version >/dev/null 2>&1; then
@@ -59,57 +60,64 @@ sleep 10
   done
   if ! docker compose version >/dev/null 2>&1; then
     echo "Error: Docker Compose did not become available after installation." >&2
-    $STD docker stop portainer && $STD docker rm portainer
+    exit 1
   fi
+
   docker --version
   docker compose version
   docker-compose --version
-  msg_ok "Docker CE cli engine & docker-compose plugin installed"
+  msg_ok "Docker Compose v2 installed"
 
+  # Update or install Portainer
   if docker ps -a --format '{{.Names}}' | grep -q '^portainer$'; then
     msg_info "Updating Portainer"
-    $STD docker pull portainer/portainer-ce:latest
-    $STD docker stop portainer && docker rm portainer
-    $STD docker volume create portainer_data >/dev/null 2>&1
-    $STD docker run -d \
+    docker pull portainer/portainer-ce:latest
+    docker stop portainer && docker rm portainer
+    docker volume create portainer_data >/dev/null 2>&1
+    docker run -d \
       -p 8000:8000 \
       -p 9443:9443 \
       --name=portainer \
-    $STD docker stop portainer_agent && $STD docker rm portainer_agent
+      --restart=always \
       -v /var/run/docker.sock:/var/run/docker.sock \
       -v portainer_data:/data \
       portainer/portainer-ce:latest
     msg_ok "Updated Portainer"
   fi
-sleep 5
+
+  sleep 5
+
+  # Update or install Portainer Agent
   if docker ps -a --format '{{.Names}}' | grep -q '^portainer_agent$'; then
     msg_info "Updating Portainer Agent"
-    $STD docker pull portainer/agent:latest
-  # Wait for Portainer Agent to be ready on port 9001 (max 30s)
-  for i in {1..30}; do
-    if curl -fs http://localhost:9001 > /dev/null 2>&1; then
-      break
-    fi
-    sleep 1
-  done
-  if ! curl -fs http://localhost:9001 > /dev/null 2>&1; then
-    echo "Warning: Portainer Agent did not become ready after 30 seconds."
-  fi
-    $STD docker run -d \
+    docker pull portainer/agent:latest
+    docker stop portainer_agent && docker rm portainer_agent
+    docker run -d \
       -p 9001:9001 \
       --name=portainer_agent \
       --restart=always \
       -v /var/run/docker.sock:/var/run/docker.sock \
       -v /var/lib/docker/volumes:/var/lib/docker/volumes \
       portainer/agent
+    # Wait for Portainer Agent to become ready
+    for i in {1..30}; do
+      if curl -fs http://localhost:9001 > /dev/null 2>&1; then
+        break
+      fi
+      sleep 1
+    done
+    if ! curl -fs http://localhost:9001 > /dev/null 2>&1; then
+      echo "Warning: Portainer Agent did not become ready after 30 seconds."
+    fi
     msg_ok "Updated Portainer Agent"
   fi
-sleep 5
+
+  sleep 5
+
   msg_info "Cleaning up"
-  $STD apt-get -y autoremove && $STD apt-get -y autoclean
+  apt-get -y autoremove && apt-get -y autoclean
   msg_ok "Cleanup complete"
-  msg_ok "Updated successfully!"
-  exit
+  msg_ok "Docker and Portainer update completed successfully!"
 }
 
 start
@@ -119,5 +127,5 @@ update_script
 
 msg_ok "Completed Successfully!\n"
 echo -e "${CREATING}${GN}${APP} setup has been successfully initialized!${CL}"
-echo -e "${INFO}${YW} If you installed Portainer, access it at the following URL:${CL}"
+echo -e "${INFO}${YW}If you installed Portainer, access it at the following URL:${CL}"
 echo -e "${TAB}${GATEWAY}${BGN}https://${IP}:9443${CL}"
