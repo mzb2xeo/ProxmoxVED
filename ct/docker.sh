@@ -30,9 +30,16 @@ function update_script() {
   $STD apt -y upgrade
   msg_ok "Base system updated"
 
-  msg_info "Updating Docker Engine"
-  $STD apt install --only-upgrade -y docker-ce docker-ce-cli containerd.io
-  msg_ok "Docker Engine updated"
+  msg_info "Installing dependencies and adding Docker Repository"
+  $STD apt install -y apt-transport-https ca-certificates curl software-properties-common
+  curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
+  add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable"
+  $STD apt update
+  msg_ok "Docker Repository added"
+
+  msg_info "Installing Docker Engine"
+  $STD apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  msg_ok "Docker CE cli Engine & docker-compose plugin installed"
 
   if [[ -f /usr/local/lib/docker/cli-plugins/docker-compose ]]; then
     COMPOSE_BIN="/usr/local/lib/docker/cli-plugins/docker-compose"
