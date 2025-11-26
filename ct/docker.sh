@@ -65,7 +65,6 @@ function update_script() {
 
   docker --version
   docker compose version
-  docker-compose --version
   msg_ok "Docker Compose v2 installed"
 
   # Update or install Portainer
@@ -118,6 +117,7 @@ function update_script() {
   apt-get -y autoremove && apt-get -y autoclean
   msg_ok "Cleanup complete"
   msg_ok "Docker and Portainer update completed successfully!"
+  exit 0
 }
 
 start
