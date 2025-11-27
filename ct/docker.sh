@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # PVE 9 requires "var_keyctl=1" and "var_nesting=1"
-#source <(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVED/main/misc/build.func)
-source <(curl -fsSL https://raw.githubusercontent.com/mzb2xeo/ProxmoxVED/main/misc/build.func)
+source <(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVED/main/misc/build.func)
+#source <(curl -fsSL https://raw.githubusercontent.com/mzb2xeo/ProxmoxVED/main/misc/build.func)
 # Copyright (c) 2021-2025 tteck
 # Author: tteck (tteckster)
 # License: MIT | https://github.com/community-scripts/ProxmoxVE/raw/main/LICENSE
@@ -25,8 +25,11 @@ color
 catch_errors
 
 function setup_docker() {
-  DOCKER_PORTAINER="true"
-  DOCKER_LOG_DRIVER="json-file"
+    header_info
+    check_container_storage
+    check_container_resources
+    DOCKER_PORTAINER="true"
+    DOCKER_LOG_DRIVER="json-file"
 }
 
 start # Calls update_script
