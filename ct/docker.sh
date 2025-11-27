@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# PVE 9 requires "var_keyctl=1" and "var_nesting=1"
 #source <(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVED/main/misc/build.func)
 source <(curl -fsSL https://raw.githubusercontent.com/mzb2xeo/ProxmoxVED/main/misc/build.func)
 # Copyright (c) 2021-2025 tteck
